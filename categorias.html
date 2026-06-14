@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Categoría Aleatoria</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #FFF8F0;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Fondo de gradiente pastel suave */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, #FFD6E8 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 10%, #D6EEFF 0%, transparent 45%),
+      radial-gradient(ellipse at 70% 85%, #D6FFE8 0%, transparent 45%),
+      radial-gradient(ellipse at 15% 80%, #FFE8D6 0%, transparent 45%),
+      #FFF8F0;
+    z-index: 0;
+  }
+
+  canvas#confetti {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+    padding: 24px;
+  }
+
+  .header {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #B589D6;
+  }
+
+  /* Tarjeta central */
+  .card {
+    background: white;
+    border-radius: 24px;
+    box-shadow:
+      0 4px 6px rgba(0,0,0,0.04),
+      0 12px 40px rgba(0,0,0,0.08);
+    padding: 52px 64px;
+    min-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    min-height: 220px;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Borde superior de color */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #FF6B9D, #FF9F43, #48DBFB, #A29BFE, #FF6B9D);
+    background-size: 200% 100%;
+    animation: shimmer 4s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+  }
+
+  .emoji-display {
+    font-size: 3.5rem;
+    line-height: 1;
+    opacity: 0;
+    transform: scale(0.5) rotate(-15deg);
+    transition: opacity 0.4s ease, transform 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  .emoji-display.visible {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  .category-display {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 7vw, 4rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    background: linear-gradient(135deg, #FF6B9D, #FF9F43);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .category-display.visible { opacity: 1; }
+
+  /* El color del texto cambia con cada categoría */
+  .category-display.c0 { background-image: linear-gradient(135deg, #FF6B9D, #FF9F43); }
+  .category-display.c1 { background-image: linear-gradient(135deg, #48DBFB, #0BE881); }
+  .category-display.c2 { background-image: linear-gradient(135deg, #A29BFE, #FD79A8); }
+  .category-display.c3 { background-image: linear-gradient(135deg, #FDCB6E, #E17055); }
+  .category-display.c4 { background-image: linear-gradient(135deg, #55EFC4, #00CEC9); }
+  .category-display.c5 { background-image: linear-gradient(135deg, #FF7675, #A29BFE); }
+
+  .hint {
+    font-size: 0.7rem;
+    color: #BDBDBD;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.5s ease 0.5s;
+  }
+  .hint.visible { opacity: 1; }
+
+  /* Botón */
+  button {
+    position: relative;
+    background: linear-gradient(135deg, #FF6B9D, #FF9F43);
+    border: none;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 20px 56px;
+    border-radius: 100px;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(255, 107, 157, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    outline: none;
+  }
+
+  button:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 12px 32px rgba(255, 107, 157, 0.5);
+  }
+  button:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+  }
+
+  /* Ripple al hacer click */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    transform: scale(0);
+    animation: ripple-anim 0.5s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes ripple-anim {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  .counter {
+    font-size: 0.68rem;
+    color: #C0C0C0;
+    letter-spacing: 0.12em;
+    margin-top: -28px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .counter.visible { opacity: 1; }
+</style>
+</head>
+<body>
+
+<canvas id="confetti"></canvas>
+
+<div class="wrapper">
+  <p class="header">✦ Generador de Categorías ✦</p>
+
+  <div class="card" id="card">
+    <div class="emoji-display" id="emoji"></div>
+    <div class="category-display c0" id="cat" aria-live="polite"></div>
+    <p class="hint" id="hint">toca de nuevo para cambiar</p>
+  </div>
+
+  <button id="btn" onclick="newCategory(event)">
+    <span>✦ Nueva Categoría</span>
+  </button>
+
+  <p class="counter" id="counter"></p>
+</div>
+
+<script>
+const CATEGORIES = [
+  // 🌍 Mundo y naturaleza
+  { name: "Animales", emoji: "🐾" },
+  { name: "Países", emoji: "🌍" },
+  { name: "Capitales del mundo", emoji: "🏙️" },
+  { name: "Naturaleza", emoji: "🌿" },
+  { name: "Plantas", emoji: "🌱" },
+  { name: "Flores", emoji: "🌸" },
+  { name: "Océano", emoji: "🌊" },
+  { name: "Montañas", emoji: "⛰️" },
+  { name: "Ríos del mundo", emoji: "🏞️" },
+  { name: "Insectos", emoji: "🦋" },
+  { name: "Aves", emoji: "🦜" },
+  { name: "Reptiles", emoji: "🦎" },
+  { name: "Mamíferos", emoji: "🐘" },
+  { name: "Peces", emoji: "🐟" },
+  { name: "Animales salvajes", emoji: "🦁" },
+  { name: "Animales del mar", emoji: "🐬" },
+  { name: "Geografía", emoji: "🗺️" },
+  { name: "Volcanes", emoji: "🌋" },
+  { name: "Desiertos", emoji: "🏜️" },
+  { name: "Planetas", emoji: "🪐" },
+  { name: "Astronomía", emoji: "🔭" },
+  { name: "Estrellas y constelaciones", emoji: "⭐" },
+  { name: "Fenómenos naturales", emoji: "🌪️" },
+  { name: "Minerales y gemas", emoji: "💎" },
+  { name: "Tipos de nubes", emoji: "☁️" },
+
+  // 🍕 Comida y bebida
+  { name: "Comidas", emoji: "🍽️" },
+  { name: "Frutas", emoji: "🍓" },
+  { name: "Verduras", emoji: "🥦" },
+  { name: "Postres", emoji: "🍰" },
+  { name: "Bebidas", emoji: "🥤" },
+  { name: "Comida rápida", emoji: "🍔" },
+  { name: "Cocina italiana", emoji: "🍝" },
+  { name: "Cocina mexicana", emoji: "🌮" },
+  { name: "Cocina japonesa", emoji: "🍱" },
+  { name: "Cocina guatemalteca", emoji: "🫔" },
+  { name: "Especias y condimentos", emoji: "🧂" },
+  { name: "Dulces y chocolates", emoji: "🍫" },
+  { name: "Helados", emoji: "🍦" },
+  { name: "Panes y pasteles", emoji: "🥐" },
+  { name: "Bebidas alcohólicas", emoji: "🍷" },
+  { name: "Cafés y tés", emoji: "☕" },
+  { name: "Sopas y caldos", emoji: "🍲" },
+  { name: "Mariscos", emoji: "🦞" },
+
+  // 🎬 Entretenimiento
+  { name: "Películas", emoji: "🎬" },
+  { name: "Series de TV", emoji: "📺" },
+  { name: "Animé", emoji: "⛩️" },
+  { name: "Caricaturas", emoji: "🐭" },
+  { name: "Superhéroes", emoji: "🦸" },
+  { name: "Villanos", emoji: "😈" },
+  { name: "Personajes de Disney", emoji: "🏰" },
+  { name: "Personajes de Marvel", emoji: "⚡" },
+  { name: "Personajes de DC", emoji: "🦇" },
+  { name: "Películas de terror", emoji: "👻" },
+  { name: "Películas de acción", emoji: "💥" },
+  { name: "Películas de comedia", emoji: "😂" },
+  { name: "Documentales", emoji: "🎞️" },
+  { name: "Directores de cine", emoji: "🎥" },
+  { name: "Premios Oscar", emoji: "🏆" },
+  { name: "Videojuegos", emoji: "🎮" },
+  { name: "Personajes de videojuegos", emoji: "👾" },
+  { name: "Juegos de mesa", emoji: "♟️" },
+  { name: "Juegos de cartas", emoji: "🃏" },
+  { name: "Memes famosos", emoji: "😹" },
+
+  // 🎵 Música
+  { name: "Música", emoji: "🎵" },
+  { name: "Cantantes hombres", emoji: "🎤" },
+  { name: "Cantantes mujeres", emoji: "🎙️" },
+  { name: "Bandas de rock", emoji: "🎸" },
+  { name: "Cantantes de reggaetón", emoji: "🔊" },
+  { name: "Cantantes de pop", emoji: "🌟" },
+  { name: "Cantantes de salsa", emoji: "💃" },
+  { name: "Cantantes de bachata", emoji: "🎶" },
+  { name: "Cantantes de regional mexicano", emoji: "🪗" },
+  { name: "Raperos", emoji: "🎧" },
+  { name: "Cantantes de K-pop", emoji: "🇰🇷" },
+  { name: "Géneros musicales", emoji: "🎼" },
+  { name: "Instrumentos musicales", emoji: "🎸" },
+  { name: "Canciones románticas", emoji: "❤️" },
+  { name: "Canciones de los 80s", emoji: "📼" },
+  { name: "Canciones de los 90s", emoji: "💿" },
+  { name: "Canciones de los 2000s", emoji: "📀" },
+  { name: "Álbumes icónicos", emoji: "🎶" },
+  { name: "Festivales de música", emoji: "🎪" },
+  { name: "DJs famosos", emoji: "🎛️" },
+
+  // 👔 Cosas de hombre / mujer
+  { name: "Cosas de hombre", emoji: "👔" },
+  { name: "Cosas de mujer", emoji: "👛" },
+  { name: "Ropa de hombre", emoji: "🧥" },
+  { name: "Ropa de mujer", emoji: "👗" },
+  { name: "Accesorios femeninos", emoji: "💍" },
+  { name: "Accesorios masculinos", emoji: "⌚" },
+  { name: "Maquillaje", emoji: "💄" },
+  { name: "Perfumes", emoji: "🌹" },
+  { name: "Zapatos de mujer", emoji: "👠" },
+  { name: "Zapatos de hombre", emoji: "👞" },
+  { name: "Marcas de ropa", emoji: "🏷️" },
+  { name: "Marcas de lujo", emoji: "✨" },
+  { name: "Estilos de peinado", emoji: "💇" },
+  { name: "Deportes de hombre", emoji: "🏋️" },
+  { name: "Hobbies femeninos", emoji: "🪡" },
+  { name: "Hobbies masculinos", emoji: "🔧" },
+
+  // 🏃 Deportes y fitness
+  { name: "Deportes", emoji: "⚽" },
+  { name: "Deportes acuáticos", emoji: "🏊" },
+  { name: "Deportes extremos", emoji: "🪂" },
+  { name: "Deportes olímpicos", emoji: "🥇" },
+  { name: "Futbolistas famosos", emoji: "⚽" },
+  { name: "Atletas famosos", emoji: "🏅" },
+  { name: "Equipos de fútbol", emoji: "🏟️" },
+  { name: "Deportes de combate", emoji: "🥊" },
+  { name: "Deportes en equipo", emoji: "🤝" },
+  { name: "Artes marciales", emoji: "🥋" },
+
+  // 💼 Sociedad y trabajo
+  { name: "Profesiones", emoji: "💼" },
+  { name: "Profesiones del futuro", emoji: "🤖" },
+  { name: "Trabajos raros", emoji: "🎪" },
+  { name: "Personajes históricos", emoji: "🏛️" },
+  { name: "Presidentes famosos", emoji: "🎖️" },
+  { name: "Inventores", emoji: "💡" },
+  { name: "Científicos famosos", emoji: "🔬" },
+  { name: "Escritores famosos", emoji: "✍️" },
+  { name: "Pintores famosos", emoji: "🖌️" },
+  { name: "Filósofos", emoji: "🧠" },
+  { name: "Exploradores históricos", emoji: "⛵" },
+  { name: "Guerras históricas", emoji: "⚔️" },
+  { name: "Imperios históricos", emoji: "🏛️" },
+  { name: "Revoluciones históricas", emoji: "✊" },
+
+  // 🏙️ Lugares y viajes
+  { name: "Viajes", emoji: "✈️" },
+  { name: "Ciudades famosas", emoji: "🏙️" },
+  { name: "Playas del mundo", emoji: "🏖️" },
+  { name: "Monumentos históricos", emoji: "🗿" },
+  { name: "Museos del mundo", emoji: "🖼️" },
+  { name: "Hoteles lujosos", emoji: "🏨" },
+  { name: "Aeropuertos importantes", emoji: "🛫" },
+  { name: "Atracciones turísticas", emoji: "📸" },
+  { name: "Parques nacionales", emoji: "🌲" },
+  { name: "Islas famosas", emoji: "🏝️" },
+
+  // 💻 Tecnología
+  { name: "Tecnología", emoji: "💻" },
+  { name: "Redes sociales", emoji: "📱" },
+  { name: "Marcas de celulares", emoji: "📲" },
+  { name: "Marcas de computadoras", emoji: "🖥️" },
+  { name: "Aplicaciones famosas", emoji: "📦" },
+  { name: "Lenguajes de programación", emoji: "💾" },
+  { name: "Personajes de ciencia ficción", emoji: "🚀" },
+  { name: "Robots famosos", emoji: "🤖" },
+  { name: "Inteligencia artificial", emoji: "🧬" },
+  { name: "Empresas tecnológicas", emoji: "🏢" },
+  { name: "Inventos modernos", emoji: "⚙️" },
+
+  // 🎓 Conocimiento
+  { name: "Historia", emoji: "🏛️" },
+  { name: "Literatura", emoji: "📚" },
+  { name: "Mitología griega", emoji: "⚡" },
+  { name: "Mitología nórdica", emoji: "🪓" },
+  { name: "Mitología azteca", emoji: "🌞" },
+  { name: "Filosofía", emoji: "🧠" },
+  { name: "Matemáticas", emoji: "📐" },
+  { name: "Ciencia", emoji: "🔬" },
+  { name: "Idiomas del mundo", emoji: "🗣️" },
+  { name: "Religiones del mundo", emoji: "🛕" },
+  { name: "Arte", emoji: "🖼️" },
+  { name: "Arquitectura", emoji: "🏗️" },
+  { name: "Fotografía", emoji: "📷" },
+  { name: "Misterios del mundo", emoji: "🔍" },
+  { name: "Teorías de conspiración", emoji: "🕵️" },
+  { name: "Supersticiones", emoji: "🪄" },
+  { name: "Leyendas urbanas", emoji: "👁️" },
+  { name: "Criaturas míticas", emoji: "🐉" },
+  { name: "Magia y hechizos", emoji: "🧙" },
+
+  // 🎃 Cultura pop
+  { name: "Colores", emoji: "🎨" },
+  { name: "Moda", emoji: "✨" },
+  { name: "Influencers famosos", emoji: "📸" },
+  { name: "Modelos famosas", emoji: "👑" },
+  { name: "Actores de Hollywood", emoji: "🎬" },
+  { name: "Actrices famosas", emoji: "🌟" },
+  { name: "Personajes de Harry Potter", emoji: "⚡" },
+  { name: "Personajes de Star Wars", emoji: "🌌" },
+  { name: "Personajes de El Señor de los Anillos", emoji: "💍" },
+  { name: "Personajes de Naruto", emoji: "🍜" },
+  { name: "Personajes de Dragon Ball", emoji: "⭐" },
+  { name: "Superhéroes de DC", emoji: "🦸" },
+  { name: "Villanos de películas", emoji: "😈" },
+  { name: "Villanos de series", emoji: "🦹" },
+  { name: "Villanos de cómics", emoji: "💀" },
+  { name: "Personajes de terror", emoji: "👹" },
+  { name: "Monstruos famosos", emoji: "🧟" },
+  { name: "Brujas y magos", emoji: "🧙‍♀️" },
+  { name: "Personajes de videojuegos", emoji: "🕹️" },
+  { name: "Youtubers famosos", emoji: "▶️" },
+
+  // 🏠 Vida cotidiana
+  { name: "Transporte", emoji: "🚗" },
+  { name: "Marcas de autos", emoji: "🏎️" },
+  { name: "Autos de lujo", emoji: "🚘" },
+  { name: "Electrodomésticos", emoji: "🏠" },
+  { name: "Herramientas", emoji: "🔧" },
+  { name: "Muebles", emoji: "🛋️" },
+  { name: "Animales domésticos", emoji: "🐶" },
+  { name: "Razas de perros", emoji: "🐕" },
+  { name: "Razas de gatos", emoji: "🐈" },
+  { name: "Festividades", emoji: "🎉" },
+  { name: "Tradiciones culturales", emoji: "🥁" },
+  { name: "Emociones", emoji: "💭" },
+  { name: "Tipos de personalidad", emoji: "🌈" },
+  { name: "Miedos comunes", emoji: "😱" },
+  { name: "Cosas que dan asco", emoji: "🤢" },
+  { name: "Cosas que hacen reír", emoji: "😂" },
+  { name: "Signos del zodiaco", emoji: "♈" },
+  { name: "Números de la suerte", emoji: "🔢" },
+];
+
+const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+let count = 0;
+let lastIdx = -1;
+let rafId = null;
+let colorIdx = 0;
+
+// ─── Audio ───────────────────────────────────────────────
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playReveal() {
+  try {
+    const ctx = getAudio();
+    const t = ctx.currentTime;
+    [659, 784, 988].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + i * 0.08);
+      gain.gain.setValueAtTime(0, t + i * 0.08);
+      gain.gain.linearRampToValueAtTime(0.13, t + i * 0.08 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.5);
+      osc.start(t + i * 0.08);
+      osc.stop(t + i * 0.08 + 0.55);
+    });
+  } catch(e) {}
+}
+
+// ─── Confeti ─────────────────────────────────────────────
+const confCanvas = document.getElementById('confetti');
+const confCtx = confCanvas.getContext('2d');
+confCanvas.width = window.innerWidth;
+confCanvas.height = window.innerHeight;
+window.addEventListener('resize', () => {
+  confCanvas.width = window.innerWidth;
+  confCanvas.height = window.innerHeight;
+});
+
+const CONF_COLORS = ['#FF6B9D','#FF9F43','#48DBFB','#A29BFE','#0BE881','#FDCB6E','#FF7675','#55EFC4','#FD79A8','#74B9FF'];
+
+let pieces = [];
+let confRaf = null;
+
+function spawnConfetti() {
+  const cx = window.innerWidth / 2;
+  // Lanzar 120 piezas desde el centro
+  for (let i = 0; i < 120; i++) {
+    const angle = (Math.random() * 360) * Math.PI / 180;
+    const speed = Math.random() * 12 + 4;
+    pieces.push({
+      x: cx,
+      y: window.innerHeight * 0.42, // desde la tarjeta
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 6,
+      r: Math.random() * 7 + 3,
+      color: CONF_COLORS[Math.floor(Math.random() * CONF_COLORS.length)],
+      rot: Math.random() * 360,
+      rotV: (Math.random() - 0.5) * 10,
+      shape: Math.random() < 0.5 ? 'rect' : 'circle',
+      life: 1,
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 5 + 3,
+    });
+  }
+  if (!confRaf) animateConfetti();
+}
+
+function animateConfetti() {
+  confCtx.clearRect(0, 0, confCanvas.width, confCanvas.height);
+  let alive = false;
+  pieces.forEach(p => {
+    p.vy += 0.35; // gravedad
+    p.vx *= 0.99;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.rot += p.rotV;
+    p.life -= 0.012;
+    if (p.life <= 0 || p.y > confCanvas.height + 20) return;
+    alive = true;
+    confCtx.save();
+    confCtx.globalAlpha = Math.max(0, p.life);
+    confCtx.translate(p.x, p.y);
+    confCtx.rotate(p.rot * Math.PI / 180);
+    confCtx.fillStyle = p.color;
+    if (p.shape === 'circle') {
+      confCtx.beginPath();
+      confCtx.arc(0, 0, p.r, 0, Math.PI * 2);
+      confCtx.fill();
+    } else {
+      confCtx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+    }
+    confCtx.restore();
+  });
+  pieces = pieces.filter(p => p.life > 0 && p.y < confCanvas.height + 20);
+  if (pieces.length > 0) {
+    confRaf = requestAnimationFrame(animateConfetti);
+  } else {
+    confRaf = null;
+    confCtx.clearRect(0, 0, confCanvas.width, confCanvas.height);
+  }
+}
+
+// ─── Ripple en botón ─────────────────────────────────────
+function addRipple(e) {
+  const btn = e.currentTarget || document.getElementById('btn');
+  const rect = btn.getBoundingClientRect();
+  const x = (e.clientX || rect.left + rect.width/2) - rect.left;
+  const y = (e.clientY || rect.top + rect.height/2) - rect.top;
+  const rip = document.createElement('span');
+  rip.className = 'ripple';
+  rip.style.cssText = `left:${x}px;top:${y}px;width:${rect.width}px;height:${rect.width}px;margin-left:-${rect.width/2}px;margin-top:-${rect.width/2}px`;
+  btn.appendChild(rip);
+  setTimeout(() => rip.remove(), 600);
+}
+
+// ─── Lógica principal ────────────────────────────────────
+function newCategory(e) {
+  if (e) addRipple(e);
+
+  let idx;
+  do { idx = Math.floor(Math.random() * CATEGORIES.length); } while (idx === lastIdx);
+  lastIdx = idx;
+  count++;
+
+  const { name, emoji } = CATEGORIES[idx];
+  const catEl  = document.getElementById('cat');
+  const emojiEl = document.getElementById('emoji');
+  const hintEl  = document.getElementById('hint');
+  const counterEl = document.getElementById('counter');
+
+  // Reset
+  catEl.classList.remove('visible');
+  emojiEl.classList.remove('visible');
+  hintEl.classList.remove('visible');
+
+  // Rotar color de gradiente
+  const colorClass = 'c' + (colorIdx % 6);
+  colorIdx++;
+  catEl.className = 'category-display ' + colorClass;
+
+  if (rafId) cancelAnimationFrame(rafId);
+  const duration = 480;
+  const start = performance.now();
+  const len = name.length;
+
+  function scramble(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const fixed = Math.floor(progress * len);
+    let display = '';
+    for (let i = 0; i < len; i++) {
+      if (i < fixed) display += name[i];
+      else display += name[i] === ' ' ? ' ' : CHARS[Math.floor(Math.random() * CHARS.length)];
+    }
+    catEl.textContent = display;
+    catEl.classList.add('visible');
+
+    if (progress < 1) {
+      rafId = requestAnimationFrame(scramble);
+    } else {
+      catEl.textContent = name;
+      emojiEl.textContent = emoji;
+      emojiEl.classList.add('visible');
+      hintEl.classList.add('visible');
+      counterEl.textContent = `${count} generada${count !== 1 ? 's' : ''} · ${CATEGORIES.length} categorías en total`;
+      counterEl.classList.add('visible');
+      playReveal();
+      spawnConfetti();
+    }
+  }
+  rafId = requestAnimationFrame(scramble);
+}
+
+// Vincular ripple al botón también en touch
+document.getElementById('btn').addEventListener('click', e => addRipple(e));
+</script>
+</body>
+</html>
